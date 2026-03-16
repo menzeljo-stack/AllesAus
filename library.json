@@ -1,0 +1,1 @@
+{\n  "id": "com.menzeljo.module",\n  "author": "Menzeljo",\n  "name": "Symcon Module",\n  "url": "https://github.com/menzeljo-stack/AllesAus",\n  "version": "1.0.0",\n  "build": "1",\n  "date": "2026-03-16",\n  "changelog": [\n    {\n      "version": "1.0.0",\n      "date": "2026-03-16",\n      "changes": "Initial release."\n    }\n  ]\n}
