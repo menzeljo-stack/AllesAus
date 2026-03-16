@@ -1,0 +1,1 @@
+{ "configuration": { "devices": [ { "id": "device1", "name": "Device 1", "button": "Button 1" }, { "id": "device2", "name": "Device 2", "button": "Button 2" } ] } }
