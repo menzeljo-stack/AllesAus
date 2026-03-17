@@ -8,25 +8,10 @@
       "delete": true,
       "sort": true,
       "columns": [
+        { "caption": "Aktiv", "name": "Enabled", "width": "60px", "add": true, "edit": { "type": "CheckBox" } },
+        { "caption": "Instanz", "name": "InstanceID", "width": "250px", "add": 0, "edit": { "type": "SelectInstance" } },
         {
-          "caption": "Aktiv",
-          "name": "Enabled",
-          "width": "60px",
-          "add": true,
-          "edit": { "type": "CheckBox" }
-        },
-        {
-          "caption": "Instanz",
-          "name": "InstanceID",
-          "width": "250px",
-          "add": 0,
-          "edit": { "type": "SelectInstance" }
-        },
-        {
-          "caption": "Typ",
-          "name": "DeviceType",
-          "width": "200px",
-          "add": "parent",
+          "caption": "Typ", "name": "DeviceType", "width": "200px", "add": "parent",
           "edit": {
             "type": "Select",
             "options": [
@@ -37,13 +22,7 @@
             ]
           }
         },
-        {
-          "caption": "Primary",
-          "name": "IsPrimary",
-          "width": "80px",
-          "add": true,
-          "edit": { "type": "CheckBox" }
-        }
+        { "caption": "Primary", "name": "IsPrimary", "width": "80px", "add": true, "edit": { "type": "CheckBox" } }
       ]
     }
   ],
