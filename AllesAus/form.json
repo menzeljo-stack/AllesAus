@@ -1,36 +1,31 @@
 {
   "elements": [
     {
-      "type": "List", 
+      "type": "List",
       "name": "DeviceList",
-      "caption": "Geräte für Alles-Aus",
+      "caption": "Geräte & Status-Feedback",
       "add": true,
       "delete": true,
       "sort": true,
       "columns": [
-        { "caption": "Aktiv", "name": "Enabled", "width": "60px", "add": true, "edit": { "type": "CheckBox" } },
-        { "caption": "Instanz", "name": "InstanceID", "width": "250px", "add": 0, "edit": { "type": "SelectInstance" } },
-        {
-          "caption": "Typ", "name": "DeviceType", "width": "200px", "add": "parent",
-          "edit": {
-            "type": "Select",
-            "options": [
-              { "caption": "HomeMatic Schalter (STATE)", "value": "parent" },
-              { "caption": "HomeMatic Dimmer (LEVEL)", "value": "dimmer" },
-              { "caption": "Shelly / Standard (RequestAction)", "value": "request" },
+        { "caption": "Aktiv", "name": "Enabled", "width": "50px", "add": true, "edit": { "type": "CheckBox" } },
+        { "caption": "Instanz (Schalten)", "name": "InstanceID", "width": "200px", "add": 0, "edit": { "type": "SelectInstance" } },
+        { "caption": "Typ", "name": "DeviceType", "width": "150px", "add": "parent", "edit": { "type": "Select", "options": [
+              { "caption": "HM Schalter", "value": "parent" },
+              { "caption": "HM Dimmer", "value": "dimmer" },
+              { "caption": "Standard / Shelly", "value": "request" },
               { "caption": "Script (Chromo)", "value": "chromo" }
             ]
-          }
-        },
-        { "caption": "Primary", "name": "IsPrimary", "width": "80px", "add": true, "edit": { "type": "CheckBox" } }
+        }},
+        { "caption": "Alles Aus", "name": "UseAllesAus", "width": "80px", "add": true, "edit": { "type": "CheckBox" } },
+        { "caption": "Primary", "name": "IsPrimary", "width": "80px", "add": false, "edit": { "type": "CheckBox" } },
+        { "caption": "Status-Variable (Überwachen)", "name": "StatusVarID", "width": "200px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "Status-LED (Ziel)", "name": "LedVarID", "width": "200px", "add": 0, "edit": { "type": "SelectVariable" } }
       ]
     }
   ],
   "actions": [
-    {
-      "type": "Button",
-      "label": "Alles AUS auslösen",
-      "onClick": "ALOA_Execute($id, false);"
-    }
+    { "type": "Button", "label": "Alles AUS auslösen", "onClick": "ALOA_Execute($id, false);" },
+    { "type": "Button", "label": "LEDs jetzt synchronisieren", "onClick": "ALOA_SyncLEDs($id);" }
   ]
 }

@@ -13,76 +13,103 @@ class AllesAus extends IPSModule
     public function ApplyChanges()
     {
         parent::ApplyChanges();
+
+        // Alle alten Registrierungen löschen
+        foreach ($this->GetMessageList() as $senderID => $messages) {
+            foreach ($messages as $message) {
+                $this->UnregisterMessage($senderID, $message);
+            }
+        }
+
+        // Neue Variablen zur Überwachung registrieren
         $list = json_decode($this->ReadPropertyString('DeviceList'), true);
-        $this->SetSummary((is_array($list) ? count($list) : 0) . ' Geräte konfiguriert');
+        if (is_array($list)) {
+            foreach ($list as $device) {
+                if ($device['Enabled'] && $device['StatusVarID'] > 0) {
+                    $this->RegisterMessage($device['StatusVarID'], VM_UPDATE);
+                }
+            }
+        }
+        
+        $this->SetSummary(count($list) . ' Geräte verwaltet');
+    }
+
+    public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
+    {
+        // Wenn sich eine überwachte Variable ändert
+        if ($Message == VM_UPDATE) {
+            $this->UpdateSingleLED($SenderID, $Data[0]);
+        }
     }
 
     public function RequestAction($Ident, $Value)
     {
-        switch ($Ident) {
-            case 'State':
-                $this->Execute($Value);
-                break;
-            default:
-                throw new Exception("Invalid Ident: " . $Ident);
+        if ($Ident == 'State') {
+            $this->Execute($Value);
         }
     }
 
     /**
-     * Schaltet ALLE aktiven Geräte in der Liste
-     * Scripte: ALOA_Execute(InstanzID, Status);
+     * Schaltet nur Geräte, bei denen 'UseAllesAus' aktiviert ist
      */
-    public function Execute(bool $Status): void
-    {
-        $this->RunSwitching($Status, false);
-    }
-
-    /**
-     * Schaltet NUR die Primary-Geräte in der Liste
-     * Scripte: ALOA_ExecutePrimary(InstanzID, Status);
-     */
-    public function ExecutePrimary(bool $Status): void
-    {
-        $this->RunSwitching($Status, true);
-    }
-
-    /**
-     * Interne Schaltlogik
-     */
-    private function RunSwitching(bool $Status, bool $OnlyPrimary): void
+    public function Execute(bool $Status, bool $OnlyPrimary = false): void
     {
         $list = json_decode($this->ReadPropertyString('DeviceList'), true);
         if (!is_array($list)) return;
 
-        $this->SetValue('State', $Status);
+        foreach ($list as $device) {
+            if (!$device['Enabled'] || !$device['UseAllesAus']) continue;
+            if ($OnlyPrimary && !$device['IsPrimary']) continue;
+
+            $this->SwitchDevice((int)$device['InstanceID'], $device['DeviceType'], $Status);
+        }
+    }
+
+    /**
+     * Manuelle Synchronisation aller LEDs
+     */
+    public function SyncLEDs(): void
+    {
+        $list = json_decode($this->ReadPropertyString('DeviceList'), true);
+        if (!is_array($list)) return;
 
         foreach ($list as $device) {
-            if (!isset($device['Enabled']) || !$device['Enabled']) continue;
-            
-            $isPrimary = (bool)($device['IsPrimary'] ?? false);
-            if ($OnlyPrimary && !$isPrimary) continue;
+            if ($device['Enabled'] && $device['StatusVarID'] > 0 && $device['LedVarID'] > 0) {
+                $currentVal = GetValue($device['StatusVarID']);
+                $this->SetLED($device['LedVarID'], (bool)$currentVal);
+            }
+        }
+    }
 
-            $id = (int)$device['InstanceID'];
-            $type = $device['DeviceType'];
+    private function UpdateSingleLED(int $varID, $value): void
+    {
+        $list = json_decode($this->ReadPropertyString('DeviceList'), true);
+        foreach ($list as $device) {
+            if ($device['Enabled'] && $device['StatusVarID'] == $varID && $device['LedVarID'] > 0) {
+                $this->SetLED($device['LedVarID'], (bool)$value);
+            }
+        }
+    }
 
-            if ($type !== 'chromo' && !IPS_InstanceExists($id)) continue;
-
-            $this->SwitchDevice($id, $type, $Status);
+    private function SetLED(int $ledID, bool $state): void
+    {
+        if (IPS_VariableExists($ledID)) {
+            // RequestAction ist am sichersten für alle Typen
+            @RequestAction($ledID, $state);
         }
     }
 
     private function SwitchDevice(int $id, string $type, bool $status): void
     {
-        $dimValue = $status ? 1.0 : 0.0;
         try {
             switch ($type) {
                 case 'parent': @HM_WriteValueBoolean($id, 'STATE', $status); break;
-                case 'dimmer': @HM_WriteValueFloat($id, 'LEVEL', $dimValue); break;
+                case 'dimmer': @HM_WriteValueFloat($id, 'LEVEL', $status ? 1.0 : 0.0); break;
                 case 'chromo': if (IPS_ScriptExists($id)) @IPS_RunScriptEx($id, ['StatusLicht' => $status]); break;
                 case 'request': @RequestAction($id, $status); break;
             }
         } catch (Exception $e) {
-            $this->SendDebug('Error', "Fehler bei ID $id: " . $e->getMessage(), 0);
+            $this->SendDebug('Error', "Schaltfehler ID $id", 0);
         }
     }
 }
