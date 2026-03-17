@@ -21,15 +21,35 @@ class AllesAus extends IPSModule
     {
         switch ($Ident) {
             case 'State':
-                $this->Execute($Value, false);
+                $this->Execute($Value);
                 break;
             default:
                 throw new Exception("Invalid Ident: " . $Ident);
         }
     }
 
-    // WICHTIG: "= false" macht den Parameter optional für ALOA_Execute($id, $status)
-    public function Execute(bool $Status, bool $OnlyPrimary = false): void
+    /**
+     * Schaltet ALLE aktiven Geräte in der Liste
+     * Scripte: ALOA_Execute(InstanzID, Status);
+     */
+    public function Execute(bool $Status): void
+    {
+        $this->RunSwitching($Status, false);
+    }
+
+    /**
+     * Schaltet NUR die Primary-Geräte in der Liste
+     * Scripte: ALOA_ExecutePrimary(InstanzID, Status);
+     */
+    public function ExecutePrimary(bool $Status): void
+    {
+        $this->RunSwitching($Status, true);
+    }
+
+    /**
+     * Interne Schaltlogik
+     */
+    private function RunSwitching(bool $Status, bool $OnlyPrimary): void
     {
         $list = json_decode($this->ReadPropertyString('DeviceList'), true);
         if (!is_array($list)) return;
@@ -39,11 +59,12 @@ class AllesAus extends IPSModule
         foreach ($list as $device) {
             if (!isset($device['Enabled']) || !$device['Enabled']) continue;
             
+            $isPrimary = (bool)($device['IsPrimary'] ?? false);
+            if ($OnlyPrimary && !$isPrimary) continue;
+
             $id = (int)$device['InstanceID'];
             $type = $device['DeviceType'];
-            $isPrimary = (bool)($device['IsPrimary'] ?? false);
 
-            if ($OnlyPrimary && !$isPrimary) continue;
             if ($type !== 'chromo' && !IPS_InstanceExists($id)) continue;
 
             $this->SwitchDevice($id, $type, $Status);

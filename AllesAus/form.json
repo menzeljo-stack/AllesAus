@@ -1,7 +1,7 @@
 {
   "elements": [
     {
-      "type": "List",
+      "type": "List", 
       "name": "DeviceList",
       "caption": "Geräte für Alles-Aus",
       "add": true,
