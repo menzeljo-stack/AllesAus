@@ -16,6 +16,7 @@ class AllesAus extends IPSModule
     {
         parent::ApplyChanges();
 
+        // Alle Nachrichten-Registrierungen bereinigen
         foreach ($this->GetMessageList() as $senderID => $messages) {
             foreach ($messages as $message) {
                 $this->UnregisterMessage($senderID, $message);
@@ -29,24 +30,30 @@ class AllesAus extends IPSModule
             foreach ($list as $device) {
                 if (!$device['Enabled'] || $device['DeviceID'] <= 0) continue;
 
-                // Da wir direkt die Variable wählen, registrieren wir sie sofort
                 if (IPS_VariableExists($device['DeviceID'])) {
                     $this->RegisterMessage($device['DeviceID'], VM_UPDATE);
-                    $watchList[$device['DeviceID']] = $device['LedVarID'];
+                    
+                    if ($device['LedVarID'] > 0) {
+                        $watchList[$device['DeviceID']][] = $device['LedVarID'];
+                    }
                 }
             }
         }
         
         $this->SetBuffer('WatchList', json_encode($watchList));
-        $this->SetSummary(count($list) . ' Objekte in Überwachung');
+        $this->SetSummary(count($list) . ' Einträge aktiv');
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
         if ($Message == VM_UPDATE) {
             $watchList = json_decode($this->GetBuffer('WatchList'), true);
-            if (isset($watchList[$SenderID]) && $watchList[$SenderID] > 0) {
-                $this->SetLED($watchList[$SenderID], (bool)$Data[0]);
+            if (isset($watchList[$SenderID])) {
+                foreach ($watchList[$SenderID] as $ledID) {
+                    $this->SetLED($ledID, (bool)$Data[0]);
+                    // Kleine Pause für HomeMatic Funkhygiene
+                    IPS_Sleep(50); 
+                }
             }
         }
     }
@@ -74,39 +81,57 @@ class AllesAus extends IPSModule
         if (!is_array($list)) return;
 
         $this->SetValue('State', $Status);
+        $switchedIDs = []; 
 
         foreach ($list as $device) {
             if (!$device['Enabled'] || !$device['UseAllesAus']) continue;
             if ($OnlyPrimary && !$device['IsPrimary']) continue;
 
-            $this->SwitchDevice((int)$device['DeviceID'], $device['DeviceType'], $Status);
+            $id = (int)$device['DeviceID'];
+            $type = $device['DeviceType'];
+
+            $targetID = $id;
+            if ($type !== 'chromo' && IPS_VariableExists($id)) {
+                $targetID = IPS_GetParent($id);
+            }
+
+            if (in_array($targetID, $switchedIDs)) continue;
+
+            $this->SwitchDevice($id, $type, $Status);
+            $switchedIDs[] = $targetID;
+            
+            // Auch hier: Kurze Pause zwischen den Schaltvorgängen
+            IPS_Sleep(100); 
         }
     }
 
     public function SyncLEDs(): void
     {
-        $list = json_decode($this->ReadPropertyString('DeviceList'), true);
-        if (!is_array($list)) return;
+        $watchList = json_decode($this->GetBuffer('WatchList'), true);
+        if (!is_array($watchList)) return;
 
-        foreach ($list as $device) {
-            if ($device['Enabled'] && $device['DeviceID'] > 0 && $device['LedVarID'] > 0) {
-                $currentVal = GetValue($device['DeviceID']);
-                $this->SetLED($device['LedVarID'], (bool)$currentVal);
+        foreach ($watchList as $varID => $ledIDs) {
+            if (IPS_VariableExists($varID)) {
+                $currentVal = (bool)GetValue($varID);
+                foreach ($ledIDs as $ledID) {
+                    $this->SetLED($ledID, $currentVal);
+                    IPS_Sleep(50);
+                }
             }
         }
     }
 
     private function SetLED(int $ledID, bool $state): void
     {
-        if (IPS_VariableExists($ledID)) {
+        if ($ledID > 0 && IPS_VariableExists($ledID)) {
+            // Da die LEDs HM-Aktoren sind, ist RequestAction der sicherste Weg,
+            // um die Standard-Aktion (HM_WriteValueBoolean) der Variable auszulösen.
             @RequestAction($ledID, $state);
         }
     }
 
     private function SwitchDevice(int $id, string $type, bool $status): void
     {
-        // Wir ermitteln die Instanz (Parent), falls eine Variable gewählt wurde
-        // Bei "chromo" (Script) bleibt die ID wie sie ist.
         $targetID = $id;
         if ($type !== 'chromo' && IPS_VariableExists($id)) {
             $targetID = IPS_GetParent($id);
