@@ -1,57 +1,57 @@
 {
-    "elements": [
+  "elements": [
+    {
+      "type": "List",
+      "name": "DeviceList",
+      "caption": "Geräte für Alles-Aus",
+      "add": true,
+      "delete": true,
+      "sort": true,
+      "columns": [
         {
-            "type": "List",
-            "name": "DeviceList",
-            "caption": "Geräte für Alles-Aus",
-            "add": true,
-            "delete": true,
-            "sort": true,
-            "columns": [
-                {
-                    "caption": "Aktiv",
-                    "name": "Enabled",
-                    "width": "60px",
-                    "add": true,
-                    "edit": { "type": "CheckBox" }
-                },
-                {
-                    "caption": "Instanz",
-                    "name": "InstanceID",
-                    "width": "250px",
-                    "add": 0,
-                    "edit": { "type": "SelectInstance" }
-                },
-                {
-                    "caption": "Typ",
-                    "name": "DeviceType",
-                    "width": "200px",
-                    "add": "parent",
-                    "edit": {
-                        "type": "Select",
-                        "options": [
-                            { "caption": "HomeMatic Schalter (STATE)", "value": "parent" },
-                            { "caption": "HomeMatic Dimmer (LEVEL)", "value": "dimmer" },
-                            { "caption": "Shelly / Standard (RequestAction)", "value": "request" },
-                            { "caption": "Script (Chromo)", "value": "chromo" }
-                        ]
-                    }
-                },
-                {
-                    "caption": "Primary",
-                    "name": "IsPrimary",
-                    "width": "80px",
-                    "add": true,
-                    "edit": { "type": "CheckBox" }
-                }
+          "caption": "Aktiv",
+          "name": "Enabled",
+          "width": "60px",
+          "add": true,
+          "edit": { "type": "CheckBox" }
+        },
+        {
+          "caption": "Instanz",
+          "name": "InstanceID",
+          "width": "250px",
+          "add": 0,
+          "edit": { "type": "SelectInstance" }
+        },
+        {
+          "caption": "Typ",
+          "name": "DeviceType",
+          "width": "200px",
+          "add": "parent",
+          "edit": {
+            "type": "Select",
+            "options": [
+              { "caption": "HomeMatic Schalter (STATE)", "value": "parent" },
+              { "caption": "HomeMatic Dimmer (LEVEL)", "value": "dimmer" },
+              { "caption": "Shelly / Standard (RequestAction)", "value": "request" },
+              { "caption": "Script (Chromo)", "value": "chromo" }
             ]
-        }
-    ],
-    "actions": [
+          }
+        },
         {
-            "type": "Button",
-            "label": "Alles AUS auslösen",
-            "onClick": "ALOA_Execute($id, false);"
+          "caption": "Primary",
+          "name": "IsPrimary",
+          "width": "80px",
+          "add": true,
+          "edit": { "type": "CheckBox" }
         }
-    ]
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Button",
+      "label": "Alles AUS auslösen",
+      "onClick": "ALOA_Execute($id, false);"
+    }
+  ]
 }

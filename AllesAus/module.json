@@ -1,14 +1,14 @@
 {
-    "id": "{F7D2E1B9-4C3A-4E5D-9B1A-2C3D4E5F6A7B}",
-    "name": "AllesAus",
-    "type": 3,
-    "vendor": "Johannes",
-    "aliases": [
-        "Alles aus"
-    ],
-    "url": "",
-    "parentRequirements": [],
-    "childRequirements": [],
-    "implemented": [],
-    "prefix": "ALOA"
+  "id": "{F7D2E1B9-4C3A-4E5D-9B1A-2C3D4E5F6A7B}",
+  "name": "AllesAus",
+  "type": 3,
+  "vendor": "Johannes",
+  "aliases": [
+    "Alles aus"
+  ],
+  "url": "",
+  "parentRequirements": [],
+  "childRequirements": [],
+  "implemented": [],
+  "prefix": "ALOA"
 }

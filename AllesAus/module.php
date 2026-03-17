@@ -6,10 +6,10 @@ class AllesAus extends IPSModule
     {
         parent::Create();
 
-        // Eigenschaften
+        // Eigenschaften registrieren
         $this->RegisterPropertyString('DeviceList', '[]');
         
-        // Statusvariable für Webfront
+        // Statusvariable für das WebFront
         $this->RegisterVariableBoolean('State', 'Status', '~Switch', 0);
         $this->EnableAction('State');
     }
@@ -21,14 +21,14 @@ class AllesAus extends IPSModule
         $list = json_decode($this->ReadPropertyString('DeviceList'), true);
         $count = is_array($list) ? count($list) : 0;
         
-        $this->SetSummary($count . ' Geräte in der Liste');
+        $this->SetSummary($count . ' Geräte konfiguriert');
     }
 
     public function RequestAction($Ident, $Value)
     {
         switch ($Ident) {
             case 'State':
-                // Wir schalten alles basierend auf dem Wert (true = an, false = aus)
+                // Schaltet alles (Primary irrelevant beim manuellen WebFront-Schalten)
                 $this->Execute($Value, false);
                 break;
 
@@ -38,31 +38,37 @@ class AllesAus extends IPSModule
     }
 
     /**
-     * Hauptfunktion zum Schalten
-     * @param bool $Status Der Zielzustand (True/False)
-     * @param bool $OnlyPrimary Falls True, werden nur Geräte mit 'IsPrimary' geschaltet
+     * Hauptfunktion zum Schalten der Liste
+     * * @param bool $Status Der Zielzustand (True = An, False = Aus)
+     * @param bool $OnlyPrimary Falls True, werden nur Geräte mit aktivem 'IsPrimary' geschaltet
      */
-    public function Execute(bool $Status, bool $OnlyPrimary): void
+    public function Execute(bool $Status, bool $OnlyPrimary = false): void
     {
         $list = json_decode($this->ReadPropertyString('DeviceList'), true);
-        if (!is_array($list)) return;
+        if (!is_array($list)) {
+            return;
+        }
 
-        // Zustand in der eigenen Variable spiegeln
+        // Lokalen Status aktualisieren
         $this->SetValue('State', $Status);
 
         foreach ($list as $device) {
-            if (!$device['Enabled']) continue;
+            // Überspringen, wenn deaktiviert
+            if (!isset($device['Enabled']) || !$device['Enabled']) {
+                continue;
+            }
             
             $id = (int)$device['InstanceID'];
             $type = $device['DeviceType'];
-            $primary = (bool)$device['IsPrimary'];
+            $primary = (bool)($device['IsPrimary'] ?? false);
 
-            // Filter für Primary-Logik
+            // Filter für "Nur Hauptgeräte"
             if ($OnlyPrimary && !$primary) {
                 continue;
             }
 
-            if (!IPS_InstanceExists($id) && $type !== 'chromo') {
+            // Existenzprüfung
+            if ($type !== 'chromo' && !IPS_InstanceExists($id)) {
                 continue;
             }
 
@@ -70,6 +76,9 @@ class AllesAus extends IPSModule
         }
     }
 
+    /**
+     * Führt den typspezifischen Schaltbefehl aus
+     */
     private function SwitchDevice(int $id, string $type, bool $status): void
     {
         $dimValue = $status ? 1.0 : 0.0;
@@ -91,12 +100,12 @@ class AllesAus extends IPSModule
                     break;
 
                 case 'request':
-                    // Nutzt die Standard-Aktion der Instanz (funktioniert bei Shelly, Zigbee2Symcon, etc.)
+                    // Nutzt RequestAction für moderne Module (Shelly, MQTT etc.)
                     @RequestAction($id, $status);
                     break;
             }
         } catch (Exception $e) {
-            $this->SendDebug('Error', "Fehler beim Schalten von ID $id: " . $e->getMessage(), 0);
+            $this->SendDebug('Error', "Fehler bei ID $id: " . $e->getMessage(), 0);
         }
     }
 }

@@ -1,13 +1,13 @@
 {
-    "id": "{C2A1E8D4-3B5F-4A12-B6E9-7D8C5A2F1B01}",
-    "author": "Johannes",
-    "name": "Haussteuerung Tools",
-    "url": "",
-    "compatibility": {
-        "version": "5.0",
-        "date": 0
-    },
-    "version": "1.0",
-    "build": 0,
+  "id": "{C2A1E8D4-3B5F-4A12-B6E9-7D8C5A2F1B01}",
+  "author": "Johannes",
+  "name": "Alles Aus Funktion",
+  "url": "",
+  "compatibility": {
+    "version": "5.0",
     "date": 0
+  },
+  "version": "1.0",
+  "build": 0,
+  "date": 0
 }
