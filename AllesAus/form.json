@@ -9,7 +9,7 @@
       "sort": true,
       "columns": [
         { "caption": "Aktiv", "name": "Enabled", "width": "50px", "add": true, "edit": { "type": "CheckBox" } },
-        { "caption": "Instanz (Schalten)", "name": "InstanceID", "width": "200px", "add": 0, "edit": { "type": "SelectInstance" } },
+        { "caption": "Gerät / Instanz", "name": "DeviceID", "width": "250px", "add": 0, "edit": { "type": "SelectID" } },
         { "caption": "Typ", "name": "DeviceType", "width": "150px", "add": "parent", "edit": { "type": "Select", "options": [
               { "caption": "HM Schalter", "value": "parent" },
               { "caption": "HM Dimmer", "value": "dimmer" },
@@ -19,7 +19,6 @@
         }},
         { "caption": "Alles Aus", "name": "UseAllesAus", "width": "80px", "add": true, "edit": { "type": "CheckBox" } },
         { "caption": "Primary", "name": "IsPrimary", "width": "80px", "add": false, "edit": { "type": "CheckBox" } },
-        { "caption": "Status-Variable (Überwachen)", "name": "StatusVarID", "width": "200px", "add": 0, "edit": { "type": "SelectVariable" } },
         { "caption": "Status-LED (Ziel)", "name": "LedVarID", "width": "200px", "add": 0, "edit": { "type": "SelectVariable" } }
       ]
     }

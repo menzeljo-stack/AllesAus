@@ -8,37 +8,50 @@ class AllesAus extends IPSModule
         $this->RegisterPropertyString('DeviceList', '[]');
         $this->RegisterVariableBoolean('State', 'Status', '~Switch', 0);
         $this->EnableAction('State');
+        
+        // Interner Buffer für die Zuordnung StatusVar -> LED
+        $this->SetBuffer('WatchList', json_encode([]));
     }
 
     public function ApplyChanges()
     {
         parent::ApplyChanges();
 
-        // Alle alten Registrierungen löschen
+        // Alte Nachrichten löschen
         foreach ($this->GetMessageList() as $senderID => $messages) {
             foreach ($messages as $message) {
                 $this->UnregisterMessage($senderID, $message);
             }
         }
 
-        // Neue Variablen zur Überwachung registrieren
         $list = json_decode($this->ReadPropertyString('DeviceList'), true);
+        $watchList = [];
+
         if (is_array($list)) {
             foreach ($list as $device) {
-                if ($device['Enabled'] && $device['StatusVarID'] > 0) {
-                    $this->RegisterMessage($device['StatusVarID'], VM_UPDATE);
+                if (!$device['Enabled']) continue;
+
+                $statusVarID = $this->ResolveStatusVariable($device['DeviceID']);
+                
+                if ($statusVarID > 0) {
+                    $this->RegisterMessage($statusVarID, VM_UPDATE);
+                    $watchList[$statusVarID] = $device['LedVarID'];
                 }
             }
         }
         
-        $this->SetSummary(count($list) . ' Geräte verwaltet');
+        $this->SetBuffer('WatchList', json_encode($watchList));
+        $this->SetSummary(count($list) . ' Geräte konfiguriert');
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
-        // Wenn sich eine überwachte Variable ändert
         if ($Message == VM_UPDATE) {
-            $this->UpdateSingleLED($SenderID, $Data[0]);
+            $watchList = json_decode($this->GetBuffer('WatchList'), true);
+            if (isset($watchList[$SenderID])) {
+                $ledID = $watchList[$SenderID];
+                $this->SetLED($ledID, (bool)$Data[0]);
+            }
         }
     }
 
@@ -49,52 +62,80 @@ class AllesAus extends IPSModule
         }
     }
 
-    /**
-     * Schaltet nur Geräte, bei denen 'UseAllesAus' aktiviert ist
-     */
-    public function Execute(bool $Status, bool $OnlyPrimary = false): void
+    public function Execute(bool $Status): void
+    {
+        $this->RunSwitching($Status, false);
+    }
+
+    public function ExecutePrimary(bool $Status): void
+    {
+        $this->RunSwitching($Status, true);
+    }
+
+    private function RunSwitching(bool $Status, bool $OnlyPrimary): void
     {
         $list = json_decode($this->ReadPropertyString('DeviceList'), true);
         if (!is_array($list)) return;
+
+        $this->SetValue('State', $Status);
 
         foreach ($list as $device) {
             if (!$device['Enabled'] || !$device['UseAllesAus']) continue;
             if ($OnlyPrimary && !$device['IsPrimary']) continue;
 
-            $this->SwitchDevice((int)$device['InstanceID'], $device['DeviceType'], $Status);
+            $this->SwitchDevice((int)$device['DeviceID'], $device['DeviceType'], $Status);
         }
     }
 
-    /**
-     * Manuelle Synchronisation aller LEDs
-     */
     public function SyncLEDs(): void
     {
         $list = json_decode($this->ReadPropertyString('DeviceList'), true);
         if (!is_array($list)) return;
 
         foreach ($list as $device) {
-            if ($device['Enabled'] && $device['StatusVarID'] > 0 && $device['LedVarID'] > 0) {
-                $currentVal = GetValue($device['StatusVarID']);
-                $this->SetLED($device['LedVarID'], (bool)$currentVal);
+            if (!$device['Enabled'] || $device['LedVarID'] <= 0) continue;
+
+            $statusVarID = $this->ResolveStatusVariable($device['DeviceID']);
+            if ($statusVarID > 0) {
+                $this->SetLED($device['LedVarID'], (bool)GetValue($statusVarID));
             }
         }
     }
 
-    private function UpdateSingleLED(int $varID, $value): void
+    private function ResolveStatusVariable(int $targetID): int
     {
-        $list = json_decode($this->ReadPropertyString('DeviceList'), true);
-        foreach ($list as $device) {
-            if ($device['Enabled'] && $device['StatusVarID'] == $varID && $device['LedVarID'] > 0) {
-                $this->SetLED($device['LedVarID'], (bool)$value);
+        if ($targetID <= 0) return 0;
+
+        // Wenn es bereits eine Variable ist
+        if (IPS_VariableExists($targetID)) {
+            return $targetID;
+        }
+
+        // Wenn es eine Instanz ist, nach typischen Idents suchen
+        if (IPS_InstanceExists($targetID)) {
+            $idents = ['STATE', 'LEVEL', 'Status', 'Power'];
+            foreach ($idents as $ident) {
+                $vid = @IPS_GetObjectIDByIdent($ident, $targetID);
+                if ($vid > 0 && IPS_VariableExists($vid)) {
+                    return $vid;
+                }
+            }
+            
+            // Fallback: Erste Boolean Variable suchen
+            $children = IPS_GetChildrenIDs($targetID);
+            foreach ($children as $child) {
+                if (IPS_VariableExists($child)) {
+                    $v = IPS_GetVariable($child);
+                    if ($v['VariableType'] == 0) return $child; // 0 = Boolean
+                }
             }
         }
+        return 0;
     }
 
     private function SetLED(int $ledID, bool $state): void
     {
-        if (IPS_VariableExists($ledID)) {
-            // RequestAction ist am sichersten für alle Typen
+        if ($ledID > 0 && IPS_VariableExists($ledID)) {
             @RequestAction($ledID, $state);
         }
     }
