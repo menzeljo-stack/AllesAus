@@ -1,1 +1,13 @@
-{\n  "id": "com.menzeljo.module",\n  "author": "Menzeljo",\n  "name": "Symcon Module",\n  "url": "https://github.com/menzeljo-stack/AllesAus",\n  "version": "1.0.0",\n  "build": "1",\n  "date": "2026-03-16",\n  "changelog": [\n    {\n      "version": "1.0.0",\n      "date": "2026-03-16",\n      "changes": "Initial release."\n    }\n  ]\n}
+{
+    "id": "{C2A1E8D4-3B5F-4A12-B6E9-7D8C5A2F1B01}",
+    "author": "Johannes",
+    "name": "Haussteuerung Tools",
+    "url": "",
+    "compatibility": {
+        "version": "5.0",
+        "date": 0
+    },
+    "version": "1.0",
+    "build": 0,
+    "date": 0
+}

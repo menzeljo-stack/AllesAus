@@ -1,31 +1,102 @@
 <?php
 
-/**
- * Improved AllesAus Module Code
- */
+class AllesAus extends IPSModule
+{
+    public function Create()
+    {
+        parent::Create();
 
-// Function to handle device execution
-function ExecuteDevice($device, $parameters) {
-    if (empty($device) || !is_array($parameters)) {
-        return "Invalid parameters provided.";
+        // Eigenschaften
+        $this->RegisterPropertyString('DeviceList', '[]');
+        
+        // Statusvariable für Webfront
+        $this->RegisterVariableBoolean('State', 'Status', '~Switch', 0);
+        $this->EnableAction('State');
     }
-    // More logic to execute the device...
-    return "Device executed successfully.";
-}
 
-// Helper function for AA_Execute
-function AA_Execute($action, $data) {
-    // Validate the action
-    if (!in_array($action, ['start', 'stop', 'restart'])) {
-        return "Invalid action: $action";
+    public function ApplyChanges()
+    {
+        parent::ApplyChanges();
+
+        $list = json_decode($this->ReadPropertyString('DeviceList'), true);
+        $count = is_array($list) ? count($list) : 0;
+        
+        $this->SetSummary($count . ' Geräte in der Liste');
     }
-    // Execute the action based on the data provided
-    $result = ExecuteDevice($data['device'], $data['params']);
-    return $result;
+
+    public function RequestAction($Ident, $Value)
+    {
+        switch ($Ident) {
+            case 'State':
+                // Wir schalten alles basierend auf dem Wert (true = an, false = aus)
+                $this->Execute($Value, false);
+                break;
+
+            default:
+                throw new Exception("Invalid Ident: " . $Ident);
+        }
+    }
+
+    /**
+     * Hauptfunktion zum Schalten
+     * @param bool $Status Der Zielzustand (True/False)
+     * @param bool $OnlyPrimary Falls True, werden nur Geräte mit 'IsPrimary' geschaltet
+     */
+    public function Execute(bool $Status, bool $OnlyPrimary): void
+    {
+        $list = json_decode($this->ReadPropertyString('DeviceList'), true);
+        if (!is_array($list)) return;
+
+        // Zustand in der eigenen Variable spiegeln
+        $this->SetValue('State', $Status);
+
+        foreach ($list as $device) {
+            if (!$device['Enabled']) continue;
+            
+            $id = (int)$device['InstanceID'];
+            $type = $device['DeviceType'];
+            $primary = (bool)$device['IsPrimary'];
+
+            // Filter für Primary-Logik
+            if ($OnlyPrimary && !$primary) {
+                continue;
+            }
+
+            if (!IPS_InstanceExists($id) && $type !== 'chromo') {
+                continue;
+            }
+
+            $this->SwitchDevice($id, $type, $Status);
+        }
+    }
+
+    private function SwitchDevice(int $id, string $type, bool $status): void
+    {
+        $dimValue = $status ? 1.0 : 0.0;
+
+        try {
+            switch ($type) {
+                case 'parent':
+                    @HM_WriteValueBoolean($id, 'STATE', $status);
+                    break;
+
+                case 'dimmer':
+                    @HM_WriteValueFloat($id, 'LEVEL', $dimValue);
+                    break;
+
+                case 'chromo':
+                    if (IPS_ScriptExists($id)) {
+                        @IPS_RunScriptEx($id, ['StatusLicht' => $status]);
+                    }
+                    break;
+
+                case 'request':
+                    // Nutzt die Standard-Aktion der Instanz (funktioniert bei Shelly, Zigbee2Symcon, etc.)
+                    @RequestAction($id, $status);
+                    break;
+            }
+        } catch (Exception $e) {
+            $this->SendDebug('Error', "Fehler beim Schalten von ID $id: " . $e->getMessage(), 0);
+        }
+    }
 }
-
-// Example usage:
-// $response = AA_Execute('start', ['device' => 'deviceName', 'params' => []]);
-// echo $response;
-
-?>
