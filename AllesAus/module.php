@@ -16,7 +16,7 @@ class AllesAus extends IPSModule
     {
         parent::ApplyChanges();
 
-        // Alle Nachrichten-Registrierungen bereinigen
+        // Bestehende Registrierungen löschen
         foreach ($this->GetMessageList() as $senderID => $messages) {
             foreach ($messages as $message) {
                 $this->UnregisterMessage($senderID, $message);
@@ -33,15 +33,19 @@ class AllesAus extends IPSModule
                 if (IPS_VariableExists($device['DeviceID'])) {
                     $this->RegisterMessage($device['DeviceID'], VM_UPDATE);
                     
-                    if ($device['LedVarID'] > 0) {
-                        $watchList[$device['DeviceID']][] = $device['LedVarID'];
+                    // Sammle alle LEDs (1 bis 4) für diese Status-Variable ein
+                    for ($i = 1; $i <= 4; $i++) {
+                        $ledKey = 'LedVarID' . $i;
+                        if (isset($device[$ledKey]) && $device[$ledKey] > 0) {
+                            $watchList[$device['DeviceID']][] = $device[$ledKey];
+                        }
                     }
                 }
             }
         }
         
         $this->SetBuffer('WatchList', json_encode($watchList));
-        $this->SetSummary(count($list) . ' Einträge aktiv');
+        $this->SetSummary(count($list) . ' Geräte in der Liste');
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
@@ -51,8 +55,7 @@ class AllesAus extends IPSModule
             if (isset($watchList[$SenderID])) {
                 foreach ($watchList[$SenderID] as $ledID) {
                     $this->SetLED($ledID, (bool)$Data[0]);
-                    // Kleine Pause für HomeMatic Funkhygiene
-                    IPS_Sleep(50); 
+                    IPS_Sleep(50); // Funkhygiene für HomeMatic
                 }
             }
         }
@@ -99,8 +102,6 @@ class AllesAus extends IPSModule
 
             $this->SwitchDevice($id, $type, $Status);
             $switchedIDs[] = $targetID;
-            
-            // Auch hier: Kurze Pause zwischen den Schaltvorgängen
             IPS_Sleep(100); 
         }
     }
@@ -124,8 +125,6 @@ class AllesAus extends IPSModule
     private function SetLED(int $ledID, bool $state): void
     {
         if ($ledID > 0 && IPS_VariableExists($ledID)) {
-            // Da die LEDs HM-Aktoren sind, ist RequestAction der sicherste Weg,
-            // um die Standard-Aktion (HM_WriteValueBoolean) der Variable auszulösen.
             @RequestAction($ledID, $state);
         }
     }
@@ -139,20 +138,10 @@ class AllesAus extends IPSModule
 
         try {
             switch ($type) {
-                case 'parent': 
-                    @HM_WriteValueBoolean($targetID, 'STATE', $status); 
-                    break;
-                case 'dimmer': 
-                    @HM_WriteValueFloat($targetID, 'LEVEL', $status ? 1.0 : 0.0); 
-                    break;
-                case 'chromo': 
-                    if (IPS_ScriptExists($id)) {
-                        @IPS_RunScriptEx($id, ['StatusLicht' => $status]);
-                    } 
-                    break;
-                case 'request': 
-                    @RequestAction($id, $status); 
-                    break;
+                case 'parent': @HM_WriteValueBoolean($targetID, 'STATE', $status); break;
+                case 'dimmer': @HM_WriteValueFloat($targetID, 'LEVEL', $status ? 1.0 : 0.0); break;
+                case 'chromo': if (IPS_ScriptExists($id)) @IPS_RunScriptEx($id, ['StatusLicht' => $status]); break;
+                case 'request': @RequestAction($id, $status); break;
             }
         } catch (Exception $e) {
             $this->SendDebug('Error', "Schaltfehler bei ID $targetID", 0);

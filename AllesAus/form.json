@@ -1,30 +1,33 @@
 {
-  "elements": [ 
+  "elements": [
     {
       "type": "List",
       "name": "DeviceList",
-      "caption": "Geräte & Status-Feedback",
+      "caption": "Geräte-Management & Multi-LED Feedback",
       "add": true,
       "delete": true,
       "sort": true,
       "columns": [
-        { "caption": "Aktiv", "name": "Enabled", "width": "50px", "add": true, "edit": { "type": "CheckBox" } },
-        { "caption": "Status-Variable / Gerät", "name": "DeviceID", "width": "300px", "add": 0, "edit": { "type": "SelectVariable" } },
-        { "caption": "Typ", "name": "DeviceType", "width": "150px", "add": "parent", "edit": { "type": "Select", "options": [
+        { "caption": "Aktiv", "name": "Enabled", "width": "40px", "add": true, "edit": { "type": "CheckBox" } },
+        { "caption": "Status-Variable", "name": "DeviceID", "width": "200px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "Typ", "name": "DeviceType", "width": "120px", "add": "parent", "edit": { "type": "Select", "options": [
               { "caption": "HM Schalter", "value": "parent" },
               { "caption": "HM Dimmer", "value": "dimmer" },
               { "caption": "Standard / Shelly", "value": "request" },
               { "caption": "Script (Chromo)", "value": "chromo" }
             ]
         }},
-        { "caption": "Alles Aus", "name": "UseAllesAus", "width": "80px", "add": true, "edit": { "type": "CheckBox" } },
-        { "caption": "Primary", "name": "IsPrimary", "width": "80px", "add": false, "edit": { "type": "CheckBox" } },
-        { "caption": "Status-LED (Ziel)", "name": "LedVarID", "width": "200px", "add": 0, "edit": { "type": "SelectVariable" } }
+        { "caption": "Alles Aus", "name": "UseAllesAus", "width": "70px", "add": true, "edit": { "type": "CheckBox" } },
+        { "caption": "Primary", "name": "IsPrimary", "width": "70px", "add": false, "edit": { "type": "CheckBox" } },
+        { "caption": "LED 1", "name": "LedVarID1", "width": "120px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "LED 2", "name": "LedVarID2", "width": "120px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "LED 3", "name": "LedVarID3", "width": "120px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "LED 4", "name": "LedVarID4", "width": "120px", "add": 0, "edit": { "type": "SelectVariable" } }
       ]
     }
   ],
   "actions": [
     { "type": "Button", "label": "Alles AUS auslösen", "onClick": "ALOA_Execute($id, false);" },
-    { "type": "Button", "label": "LEDs jetzt synchronisieren", "onClick": "ALOA_SyncLEDs($id);" }
+    { "type": "Button", "label": "Alle LEDs synchronisieren", "onClick": "ALOA_SyncLEDs($id);" }
   ]
 }
