@@ -26,21 +26,23 @@
       "delete": true,
       "sort": true,
       "columns": [
-        { "caption": "Aktiv", "name": "Enabled", "width": "40px", "add": true, "edit": { "type": "CheckBox" } },
-        { "caption": "Alias (Anzeige)", "name": "Alias", "width": "150px", "add": "", "edit": { "type": "ValidationTextBox" } },
-        { "caption": "Status-Variable", "name": "DeviceID", "width": "200px", "add": 0, "edit": { "type": "SelectVariable" } },
-        { "caption": "Typ", "name": "DeviceType", "width": "140px", "add": "parent", "edit": { "type": "Select", "options": [
+        { "caption": "Aktiv", "name": "Enabled", "width": "50px", "add": true, "edit": { "type": "CheckBox" } },
+        { "caption": "Alias (Anzeige)", "name": "Alias", "width": "200px", "add": "", "edit": { "type": "ValidationTextBox" } },
+        { "caption": "Status-Variable", "name": "DeviceID", "width": "300px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "Typ", "name": "DeviceType", "width": "180px", "add": "parent", "edit": { "type": "Select", "options": [
               { "caption": "HomeMatic Schalter", "value": "parent" },
               { "caption": "HomeMatic Dimmer", "value": "dimmer" },
               { "caption": "WLED / RGB (Standard)", "value": "request" },
               { "caption": "Script (Chromo)", "value": "chromo" }
             ]
         }},
-        { "caption": "Alles Aus", "name": "UseAllesAus", "width": "75px", "add": true, "edit": { "type": "CheckBox" } },
-        { "caption": "ECO (Min)", "name": "EcoMinutes", "width": "70px", "add": 0, "edit": { "type": "NumberSpinner", "minimum": 0 } },
-        { "caption": "Primary", "name": "IsPrimary", "width": "70px", "add": false, "edit": { "type": "CheckBox" } },
-        { "caption": "LED 1", "name": "LedVarID1", "width": "120px", "add": 0, "edit": { "type": "SelectVariable" } },
-        { "caption": "LED 2", "name": "LedVarID2", "width": "120px", "add": 0, "edit": { "type": "SelectVariable" } }
+        { "caption": "Alles Aus", "name": "UseAllesAus", "width": "80px", "add": true, "edit": { "type": "CheckBox" } },
+        { "caption": "ECO (Min)", "name": "EcoMinutes", "width": "80px", "add": 0, "edit": { "type": "NumberSpinner", "minimum": 0 } },
+        { "caption": "Primary", "name": "IsPrimary", "width": "80px", "add": false, "edit": { "type": "CheckBox" } },
+        { "caption": "LED 1", "name": "LedVarID1", "width": "200px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "LED 2", "name": "LedVarID2", "width": "200px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "LED 3", "name": "LedVarID3", "width": "200px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "LED 4", "name": "LedVarID4", "width": "200px", "add": 0, "edit": { "type": "SelectVariable" } }
       ]
     }
   ],
