@@ -2,6 +2,28 @@
   "elements": [
     {
       "type": "ExpansionPanel",
+      "caption": "Dokumentation & Befehle",
+      "items": [
+        {
+          "type": "Label",
+          "caption": "Verwende diese Befehle in deinen Skripten (ID = Instanz-ID dieses Moduls):"
+        },
+        {
+          "type": "Label",
+          "caption": "LST_Execute(ID, true/false);          // Schaltet alle Geräte mit 'Alles Aus' Haken"
+        },
+        {
+          "type": "Label",
+          "caption": "LST_ExecutePrimary(ID, true/false);   // Schaltet nur Geräte mit 'Primary' Haken"
+        },
+        {
+          "type": "Label",
+          "caption": "LST_SyncLEDs(ID);                     // Gleicht alle LEDs manuell mit dem Gerätestatus ab"
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
       "caption": "Benachrichtigungen (Pushover)",
       "items": [
         { "type": "SelectInstance", "name": "PushoverInstance", "caption": "Pushover Instanz" },
@@ -36,7 +58,7 @@
     }
   ],
   "actions": [
-    { "type": "Button", "label": "Alles AUS auslösen", "onClick": "ALOA_Execute($id, false);" },
-    { "type": "Button", "label": "Alle LEDs synchronisieren", "onClick": "ALOA_SyncLEDs($id);" }
+    { "type": "Button", "label": "Zentrale: Alles AUS", "onClick": "LST_Execute($id, false);" },
+    { "type": "Button", "label": "Alle LEDs synchronisieren", "onClick": "LST_SyncLEDs($id);" }
   ]
 }

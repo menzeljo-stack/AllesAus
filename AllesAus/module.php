@@ -1,21 +1,21 @@
 <?php
 
-class AllesAus extends IPSModule
+class Lichtsteuerung extends IPSModule
 {
     public function Create()
     {
         parent::Create();
         $this->RegisterPropertyString('DeviceList', '[]');
         $this->RegisterPropertyInteger('PushoverInstance', 0);
-        $this->RegisterPropertyString('PushTitle', 'ECO Manager');
+        $this->RegisterPropertyString('PushTitle', 'Lichtsteuerung ECO');
 
-        $this->RegisterVariableBoolean('State', 'Status', '~Switch', 0);
+        $this->RegisterVariableBoolean('State', 'Zentral-Schalter', '~Switch', 0);
         $this->EnableAction('State');
         
         $this->SetBuffer('WatchList', json_encode([]));
         $this->SetBuffer('EcoTable', json_encode([]));
 
-        $this->RegisterTimer('EcoTimer', 0, "ALOA_EcoTick(\$_IPS['TARGET']);");
+        $this->RegisterTimer('EcoTimer', 0, "LST_EcoTick(\$_IPS['TARGET']);");
     }
 
     public function ApplyChanges()
@@ -52,7 +52,7 @@ class AllesAus extends IPSModule
         
         $this->SetBuffer('WatchList', json_encode($watchList));
         $this->SetTimerInterval('EcoTimer', $hasEco ? 60 * 1000 : 0);
-        $this->SetSummary(count($list) . ' Geräte konfiguriert');
+        $this->SetSummary(count($list) . ' Geräte aktiv');
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
@@ -100,7 +100,7 @@ class AllesAus extends IPSModule
                     if ($device['DeviceID'] == $varID) {
                         $name = IPS_GetName(IPS_GetParent($varID));
                         $this->SwitchDevice((int)$device['DeviceID'], $device['DeviceType'], false);
-                        $this->SendPushover("ECO-Timeout: {$name} wurde nach {$device['EcoMinutes']} Min. automatisch ausgeschaltet.");
+                        $this->SendPushover("ECO-Timeout: {$name} wurde automatisch ausgeschaltet.");
                         unset($ecoTable[$varID]);
                         $changed = true;
                         break;
@@ -132,7 +132,7 @@ class AllesAus extends IPSModule
         if (!is_array($list)) return;
 
         $this->SetValue('State', $Status);
-        $switchedIDs = []; 
+        $switchedIDs = [];
         foreach ($list as $device) {
             if (!$device['Enabled'] || !$device['UseAllesAus']) continue;
             if ($OnlyPrimary && !$device['IsPrimary']) continue;
@@ -142,7 +142,7 @@ class AllesAus extends IPSModule
 
             $this->SwitchDevice($id, $device['DeviceType'], $Status);
             $switchedIDs[] = $id;
-            IPS_Sleep(100); 
+            IPS_Sleep(100);
         }
     }
 
@@ -167,7 +167,6 @@ class AllesAus extends IPSModule
 
     private function SwitchDevice(int $id, string $type, bool $status): void
     {
-        // Bei HM brauchen wir das Parent, bei WLED/Request direkt die Variable
         $targetID = ($type == 'parent' || $type == 'dimmer') ? IPS_GetParent($id) : $id;
 
         try {

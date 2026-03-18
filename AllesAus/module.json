@@ -1,14 +1,15 @@
 {
   "id": "{F7D2E1B9-4C3A-4E5D-9B1A-2C3D4E5F6A7B}",
-  "name": "AllesAus",
+  "name": "Lichtsteuerung",
   "type": 3,
   "vendor": "Johannes",
   "aliases": [
+    "Lichtsteuerung",
     "Alles aus"
   ],
   "url": "",
   "parentRequirements": [],
   "childRequirements": [],
   "implemented": [],
-  "prefix": "ALOA"
+  "prefix": "LST"
 }
