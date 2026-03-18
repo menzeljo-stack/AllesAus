@@ -98,9 +98,15 @@ class Lichtsteuerung extends IPSModule
             if ($now >= $offAt) {
                 foreach ($list as $device) {
                     if ($device['DeviceID'] == $varID) {
-                        $name = IPS_GetName(IPS_GetParent($varID));
+                        // Alias nutzen oder Fallback auf Objektname
+                        $displayName = trim($device['Alias']);
+                        if ($displayName === '') {
+                            $displayName = IPS_GetName(IPS_GetParent($varID));
+                        }
+
                         $this->SwitchDevice((int)$device['DeviceID'], $device['DeviceType'], false);
-                        $this->SendPushover("ECO-Timeout: {$name} wurde automatisch ausgeschaltet.");
+                        $this->SendPushover("ECO-Timeout: {$displayName} wurde automatisch ausgeschaltet.");
+                        
                         unset($ecoTable[$varID]);
                         $changed = true;
                         break;
@@ -172,7 +178,7 @@ class Lichtsteuerung extends IPSModule
         try {
             switch ($type) {
                 case 'parent': @HM_WriteValueBoolean($targetID, 'STATE', $status); break;
-                case 'dimmer': @HM_WriteValueFloat($targetID, 'LEVEL', $status ? 1.0 : 0.0); break;
+                case 'dimer': @HM_WriteValueFloat($targetID, 'LEVEL', $status ? 1.0 : 0.0); break;
                 case 'chromo': if (IPS_ScriptExists($id)) @IPS_RunScriptEx($id, ['StatusLicht' => $status]); break;
                 case 'request': @RequestAction($id, $status); break;
             }
