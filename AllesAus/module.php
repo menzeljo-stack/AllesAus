@@ -13,9 +13,8 @@ class AllesAus extends IPSModule
         $this->EnableAction('State');
         
         $this->SetBuffer('WatchList', json_encode([]));
-        $this->SetBuffer('EcoTable', json_encode([])); // [VarID => OffTimestamp]
+        $this->SetBuffer('EcoTable', json_encode([]));
 
-        // Timer für ECO-Prüfung (alle 60 Sekunden)
         $this->RegisterTimer('EcoTimer', 0, "ALOA_EcoTick(\$_IPS['TARGET']);");
     }
 
@@ -40,8 +39,13 @@ class AllesAus extends IPSModule
                 if (IPS_VariableExists($device['DeviceID'])) {
                     $this->RegisterMessage($device['DeviceID'], VM_UPDATE);
                     
-                    if ($device['LedVarID1'] > 0) $watchList[$device['DeviceID']][] = $device['LedVarID1'];
-                    if ($device['LedVarID2'] > 0) $watchList[$device['DeviceID']][] = $device['LedVarID2'];
+                    // Sammle alle 4 LEDs ein
+                    for ($i = 1; $i <= 4; $i++) {
+                        $key = 'LedVarID' . $i;
+                        if (isset($device[$key]) && $device[$key] > 0) {
+                            $watchList[$device['DeviceID']][] = $device[$key];
+                        }
+                    }
                     
                     if ($device['EcoMinutes'] > 0) $hasEco = true;
                 }
@@ -49,10 +53,7 @@ class AllesAus extends IPSModule
         }
         
         $this->SetBuffer('WatchList', json_encode($watchList));
-        
-        // EcoTimer nur starten, wenn mindestens ein Gerät ein Timeout hat
         $this->SetTimerInterval('EcoTimer', $hasEco ? 60 * 1000 : 0);
-        
         $this->SetSummary(count($list) . ' Geräte konfiguriert');
     }
 
@@ -61,7 +62,7 @@ class AllesAus extends IPSModule
         if ($Message == VM_UPDATE) {
             $val = (bool)$Data[0];
             
-            // 1. LED Feedback
+            // 1. LED Feedback für alle verknüpften LEDs
             $watchList = json_decode($this->GetBuffer('WatchList'), true);
             if (isset($watchList[$SenderID])) {
                 foreach ($watchList[$SenderID] as $ledID) {
@@ -81,15 +82,12 @@ class AllesAus extends IPSModule
         $ecoTable = json_decode($this->GetBuffer('EcoTable'), true);
 
         if ($val) {
-            // Gerät wurde eingeschaltet -> Timer suchen
             foreach ($list as $device) {
                 if ($device['DeviceID'] == $varID && $device['EcoMinutes'] > 0) {
-                    $offAt = time() + ($device['EcoMinutes'] * 60);
-                    $ecoTable[$varID] = $offAt;
+                    $ecoTable[$varID] = time() + ($device['EcoMinutes'] * 60);
                 }
             }
         } else {
-            // Gerät wurde ausgeschaltet -> Timer entfernen
             unset($ecoTable[$varID]);
         }
         $this->SetBuffer('EcoTable', json_encode($ecoTable));
@@ -104,7 +102,6 @@ class AllesAus extends IPSModule
 
         foreach ($ecoTable as $varID => $offAt) {
             if ($now >= $offAt) {
-                // Zeit abgelaufen!
                 foreach ($list as $device) {
                     if ($device['DeviceID'] == $varID) {
                         $name = IPS_GetName(IPS_GetParent($varID));
@@ -136,6 +133,7 @@ class AllesAus extends IPSModule
         $list = json_decode($this->ReadPropertyString('DeviceList'), true);
         if (!is_array($list)) return;
 
+        $this->SetValue('State', $Status);
         $switchedIDs = []; 
         foreach ($list as $device) {
             if (!$device['Enabled'] || !$device['UseAllesAus']) continue;

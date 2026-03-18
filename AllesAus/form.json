@@ -17,18 +17,21 @@
       "sort": true,
       "columns": [
         { "caption": "Aktiv", "name": "Enabled", "width": "40px", "add": true, "edit": { "type": "CheckBox" } },
-        { "caption": "Status-Variable", "name": "DeviceID", "width": "200px", "add": 0, "edit": { "type": "SelectVariable" } },
-        { "caption": "Typ", "name": "DeviceType", "width": "120px", "add": "parent", "edit": { "type": "Select", "options": [
+        { "caption": "Status-Variable / Gerät", "name": "DeviceID", "width": "220px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "Typ", "name": "DeviceType", "width": "130px", "add": "parent", "edit": { "type": "Select", "options": [
               { "caption": "HM Schalter", "value": "parent" },
               { "caption": "HM Dimmer", "value": "dimmer" },
               { "caption": "Standard / Shelly", "value": "request" },
               { "caption": "Script (Chromo)", "value": "chromo" }
             ]
         }},
-        { "caption": "Alles Aus", "name": "UseAllesAus", "width": "70px", "add": true, "edit": { "type": "CheckBox" } },
-        { "caption": "ECO (Min)", "name": "EcoMinutes", "width": "80px", "add": 0, "edit": { "type": "NumberSpinner", "minimum": 0 } },
-        { "caption": "LED 1", "name": "LedVarID1", "width": "100px", "add": 0, "edit": { "type": "SelectVariable" } },
-        { "caption": "LED 2", "name": "LedVarID2", "width": "100px", "add": 0, "edit": { "type": "SelectVariable" } }
+        { "caption": "Alles Aus", "name": "UseAllesAus", "width": "75px", "add": true, "edit": { "type": "CheckBox" } },
+        { "caption": "ECO (Min)", "name": "EcoMinutes", "width": "75px", "add": 0, "edit": { "type": "NumberSpinner", "minimum": 0 } },
+        { "caption": "Primary", "name": "IsPrimary", "width": "75px", "add": false, "edit": { "type": "CheckBox" } },
+        { "caption": "LED 1", "name": "LedVarID1", "width": "160px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "LED 2", "name": "LedVarID2", "width": "160px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "LED 3", "name": "LedVarID3", "width": "160px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "LED 4", "name": "LedVarID4", "width": "160px", "add": 0, "edit": { "type": "SelectVariable" } }
       ]
     }
   ],
