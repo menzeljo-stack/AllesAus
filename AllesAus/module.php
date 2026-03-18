@@ -39,14 +39,12 @@ class AllesAus extends IPSModule
                 if (IPS_VariableExists($device['DeviceID'])) {
                     $this->RegisterMessage($device['DeviceID'], VM_UPDATE);
                     
-                    // Sammle alle 4 LEDs ein
                     for ($i = 1; $i <= 4; $i++) {
                         $key = 'LedVarID' . $i;
                         if (isset($device[$key]) && $device[$key] > 0) {
                             $watchList[$device['DeviceID']][] = $device[$key];
                         }
                     }
-                    
                     if ($device['EcoMinutes'] > 0) $hasEco = true;
                 }
             }
@@ -61,8 +59,6 @@ class AllesAus extends IPSModule
     {
         if ($Message == VM_UPDATE) {
             $val = (bool)$Data[0];
-            
-            // 1. LED Feedback für alle verknüpften LEDs
             $watchList = json_decode($this->GetBuffer('WatchList'), true);
             if (isset($watchList[$SenderID])) {
                 foreach ($watchList[$SenderID] as $ledID) {
@@ -70,8 +66,6 @@ class AllesAus extends IPSModule
                     IPS_Sleep(50);
                 }
             }
-
-            // 2. ECO Timeout Logik
             $this->HandleEcoTracking($SenderID, $val);
         }
     }
@@ -106,7 +100,6 @@ class AllesAus extends IPSModule
                     if ($device['DeviceID'] == $varID) {
                         $name = IPS_GetName(IPS_GetParent($varID));
                         $this->SwitchDevice((int)$device['DeviceID'], $device['DeviceType'], false);
-                        
                         $this->SendPushover("ECO-Timeout: {$name} wurde nach {$device['EcoMinutes']} Min. automatisch ausgeschaltet.");
                         unset($ecoTable[$varID]);
                         $changed = true;
@@ -115,20 +108,25 @@ class AllesAus extends IPSModule
                 }
             }
         }
-
-        if ($changed) {
-            $this->SetBuffer('EcoTable', json_encode($ecoTable));
-        }
+        if ($changed) $this->SetBuffer('EcoTable', json_encode($ecoTable));
     }
 
     public function RequestAction($Ident, $Value)
     {
-        if ($Ident == 'State') {
-            $this->Execute($Value);
-        }
+        if ($Ident == 'State') $this->Execute($Value);
     }
 
     public function Execute(bool $Status): void
+    {
+        $this->RunSwitching($Status, false);
+    }
+
+    public function ExecutePrimary(bool $Status): void
+    {
+        $this->RunSwitching($Status, true);
+    }
+
+    private function RunSwitching(bool $Status, bool $OnlyPrimary): void
     {
         $list = json_decode($this->ReadPropertyString('DeviceList'), true);
         if (!is_array($list)) return;
@@ -137,15 +135,13 @@ class AllesAus extends IPSModule
         $switchedIDs = []; 
         foreach ($list as $device) {
             if (!$device['Enabled'] || !$device['UseAllesAus']) continue;
+            if ($OnlyPrimary && !$device['IsPrimary']) continue;
             
-            $targetID = (int)$device['DeviceID'];
-            if ($device['DeviceType'] !== 'chromo' && IPS_VariableExists($targetID)) {
-                $targetID = IPS_GetParent($targetID);
-            }
+            $id = (int)$device['DeviceID'];
+            if (in_array($id, $switchedIDs)) continue;
 
-            if (in_array($targetID, $switchedIDs)) continue;
-            $this->SwitchDevice((int)$device['DeviceID'], $device['DeviceType'], $Status);
-            $switchedIDs[] = $targetID;
+            $this->SwitchDevice($id, $device['DeviceType'], $Status);
+            $switchedIDs[] = $id;
             IPS_Sleep(100); 
         }
     }
@@ -166,14 +162,14 @@ class AllesAus extends IPSModule
 
     private function SetLED(int $ledID, bool $state): void
     {
-        if ($ledID > 0 && IPS_VariableExists($ledID)) {
-            @RequestAction($ledID, $state);
-        }
+        if ($ledID > 0 && IPS_VariableExists($ledID)) @RequestAction($ledID, $state);
     }
 
     private function SwitchDevice(int $id, string $type, bool $status): void
     {
-        $targetID = (IPS_VariableExists($id) && $type !== 'chromo') ? IPS_GetParent($id) : $id;
+        // Bei HM brauchen wir das Parent, bei WLED/Request direkt die Variable
+        $targetID = ($type == 'parent' || $type == 'dimmer') ? IPS_GetParent($id) : $id;
+
         try {
             switch ($type) {
                 case 'parent': @HM_WriteValueBoolean($targetID, 'STATE', $status); break;
@@ -182,7 +178,7 @@ class AllesAus extends IPSModule
                 case 'request': @RequestAction($id, $status); break;
             }
         } catch (Exception $e) {
-            $this->SendDebug('Error', "Schaltfehler ID $targetID", 0);
+            $this->SendDebug('Error', "Schaltfehler ID $id", 0);
         }
     }
 
@@ -190,10 +186,6 @@ class AllesAus extends IPSModule
     {
         $inst = $this->ReadPropertyInteger('PushoverInstance');
         if ($inst <= 0 || !IPS_InstanceExists($inst)) return;
-
-        $title = $this->ReadPropertyString('PushTitle');
-        if (function_exists('TUPO_SendMessage')) {
-            @TUPO_SendMessage($inst, $title, $message, 0);
-        }
+        if (function_exists('TUPO_SendMessage')) @TUPO_SendMessage($inst, $this->ReadPropertyString('PushTitle'), $message, 0);
     }
 }
