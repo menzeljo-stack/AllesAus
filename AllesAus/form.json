@@ -1,9 +1,17 @@
 {
   "elements": [
     {
+      "type": "ExpansionPanel",
+      "caption": "Benachrichtigungen (Pushover)",
+      "items": [
+        { "type": "SelectInstance", "name": "PushoverInstance", "caption": "Pushover Instanz" },
+        { "type": "ValidationTextBox", "name": "PushTitle", "caption": "Push Titel (z.B. ECO-Manager)" }
+      ]
+    },
+    {
       "type": "List",
       "name": "DeviceList",
-      "caption": "Geräte-Management & Multi-LED Feedback",
+      "caption": "Geräte-Management & ECO-Timeout",
       "add": true,
       "delete": true,
       "sort": true,
@@ -18,11 +26,9 @@
             ]
         }},
         { "caption": "Alles Aus", "name": "UseAllesAus", "width": "70px", "add": true, "edit": { "type": "CheckBox" } },
-        { "caption": "Primary", "name": "IsPrimary", "width": "70px", "add": false, "edit": { "type": "CheckBox" } },
-        { "caption": "LED 1", "name": "LedVarID1", "width": "120px", "add": 0, "edit": { "type": "SelectVariable" } },
-        { "caption": "LED 2", "name": "LedVarID2", "width": "120px", "add": 0, "edit": { "type": "SelectVariable" } },
-        { "caption": "LED 3", "name": "LedVarID3", "width": "120px", "add": 0, "edit": { "type": "SelectVariable" } },
-        { "caption": "LED 4", "name": "LedVarID4", "width": "120px", "add": 0, "edit": { "type": "SelectVariable" } }
+        { "caption": "ECO (Min)", "name": "EcoMinutes", "width": "80px", "add": 0, "edit": { "type": "NumberSpinner", "minimum": 0 } },
+        { "caption": "LED 1", "name": "LedVarID1", "width": "100px", "add": 0, "edit": { "type": "SelectVariable" } },
+        { "caption": "LED 2", "name": "LedVarID2", "width": "100px", "add": 0, "edit": { "type": "SelectVariable" } }
       ]
     }
   ],

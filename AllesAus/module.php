@@ -6,17 +6,23 @@ class AllesAus extends IPSModule
     {
         parent::Create();
         $this->RegisterPropertyString('DeviceList', '[]');
+        $this->RegisterPropertyInteger('PushoverInstance', 0);
+        $this->RegisterPropertyString('PushTitle', 'ECO Manager');
+
         $this->RegisterVariableBoolean('State', 'Status', '~Switch', 0);
         $this->EnableAction('State');
         
         $this->SetBuffer('WatchList', json_encode([]));
+        $this->SetBuffer('EcoTable', json_encode([])); // [VarID => OffTimestamp]
+
+        // Timer für ECO-Prüfung (alle 60 Sekunden)
+        $this->RegisterTimer('EcoTimer', 0, "ALOA_EcoTick(\$_IPS['TARGET']);");
     }
 
     public function ApplyChanges()
     {
         parent::ApplyChanges();
 
-        // Bestehende Registrierungen löschen
         foreach ($this->GetMessageList() as $senderID => $messages) {
             foreach ($messages as $message) {
                 $this->UnregisterMessage($senderID, $message);
@@ -25,6 +31,7 @@ class AllesAus extends IPSModule
 
         $list = json_decode($this->ReadPropertyString('DeviceList'), true);
         $watchList = [];
+        $hasEco = false;
 
         if (is_array($list)) {
             foreach ($list as $device) {
@@ -33,31 +40,87 @@ class AllesAus extends IPSModule
                 if (IPS_VariableExists($device['DeviceID'])) {
                     $this->RegisterMessage($device['DeviceID'], VM_UPDATE);
                     
-                    // Sammle alle LEDs (1 bis 4) für diese Status-Variable ein
-                    for ($i = 1; $i <= 4; $i++) {
-                        $ledKey = 'LedVarID' . $i;
-                        if (isset($device[$ledKey]) && $device[$ledKey] > 0) {
-                            $watchList[$device['DeviceID']][] = $device[$ledKey];
-                        }
-                    }
+                    if ($device['LedVarID1'] > 0) $watchList[$device['DeviceID']][] = $device['LedVarID1'];
+                    if ($device['LedVarID2'] > 0) $watchList[$device['DeviceID']][] = $device['LedVarID2'];
+                    
+                    if ($device['EcoMinutes'] > 0) $hasEco = true;
                 }
             }
         }
         
         $this->SetBuffer('WatchList', json_encode($watchList));
-        $this->SetSummary(count($list) . ' Geräte in der Liste');
+        
+        // EcoTimer nur starten, wenn mindestens ein Gerät ein Timeout hat
+        $this->SetTimerInterval('EcoTimer', $hasEco ? 60 * 1000 : 0);
+        
+        $this->SetSummary(count($list) . ' Geräte konfiguriert');
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
         if ($Message == VM_UPDATE) {
+            $val = (bool)$Data[0];
+            
+            // 1. LED Feedback
             $watchList = json_decode($this->GetBuffer('WatchList'), true);
             if (isset($watchList[$SenderID])) {
                 foreach ($watchList[$SenderID] as $ledID) {
-                    $this->SetLED($ledID, (bool)$Data[0]);
-                    IPS_Sleep(50); // Funkhygiene für HomeMatic
+                    $this->SetLED($ledID, $val);
+                    IPS_Sleep(50);
                 }
             }
+
+            // 2. ECO Timeout Logik
+            $this->HandleEcoTracking($SenderID, $val);
+        }
+    }
+
+    private function HandleEcoTracking(int $varID, bool $val): void
+    {
+        $list = json_decode($this->ReadPropertyString('DeviceList'), true);
+        $ecoTable = json_decode($this->GetBuffer('EcoTable'), true);
+
+        if ($val) {
+            // Gerät wurde eingeschaltet -> Timer suchen
+            foreach ($list as $device) {
+                if ($device['DeviceID'] == $varID && $device['EcoMinutes'] > 0) {
+                    $offAt = time() + ($device['EcoMinutes'] * 60);
+                    $ecoTable[$varID] = $offAt;
+                }
+            }
+        } else {
+            // Gerät wurde ausgeschaltet -> Timer entfernen
+            unset($ecoTable[$varID]);
+        }
+        $this->SetBuffer('EcoTable', json_encode($ecoTable));
+    }
+
+    public function EcoTick(): void
+    {
+        $ecoTable = json_decode($this->GetBuffer('EcoTable'), true);
+        $list = json_decode($this->ReadPropertyString('DeviceList'), true);
+        $now = time();
+        $changed = false;
+
+        foreach ($ecoTable as $varID => $offAt) {
+            if ($now >= $offAt) {
+                // Zeit abgelaufen!
+                foreach ($list as $device) {
+                    if ($device['DeviceID'] == $varID) {
+                        $name = IPS_GetName(IPS_GetParent($varID));
+                        $this->SwitchDevice((int)$device['DeviceID'], $device['DeviceType'], false);
+                        
+                        $this->SendPushover("ECO-Timeout: {$name} wurde nach {$device['EcoMinutes']} Min. automatisch ausgeschaltet.");
+                        unset($ecoTable[$varID]);
+                        $changed = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if ($changed) {
+            $this->SetBuffer('EcoTable', json_encode($ecoTable));
         }
     }
 
@@ -70,37 +133,20 @@ class AllesAus extends IPSModule
 
     public function Execute(bool $Status): void
     {
-        $this->RunSwitching($Status, false);
-    }
-
-    public function ExecutePrimary(bool $Status): void
-    {
-        $this->RunSwitching($Status, true);
-    }
-
-    private function RunSwitching(bool $Status, bool $OnlyPrimary): void
-    {
         $list = json_decode($this->ReadPropertyString('DeviceList'), true);
         if (!is_array($list)) return;
 
-        $this->SetValue('State', $Status);
         $switchedIDs = []; 
-
         foreach ($list as $device) {
             if (!$device['Enabled'] || !$device['UseAllesAus']) continue;
-            if ($OnlyPrimary && !$device['IsPrimary']) continue;
-
-            $id = (int)$device['DeviceID'];
-            $type = $device['DeviceType'];
-
-            $targetID = $id;
-            if ($type !== 'chromo' && IPS_VariableExists($id)) {
-                $targetID = IPS_GetParent($id);
+            
+            $targetID = (int)$device['DeviceID'];
+            if ($device['DeviceType'] !== 'chromo' && IPS_VariableExists($targetID)) {
+                $targetID = IPS_GetParent($targetID);
             }
 
             if (in_array($targetID, $switchedIDs)) continue;
-
-            $this->SwitchDevice($id, $type, $Status);
+            $this->SwitchDevice((int)$device['DeviceID'], $device['DeviceType'], $Status);
             $switchedIDs[] = $targetID;
             IPS_Sleep(100); 
         }
@@ -109,13 +155,11 @@ class AllesAus extends IPSModule
     public function SyncLEDs(): void
     {
         $watchList = json_decode($this->GetBuffer('WatchList'), true);
-        if (!is_array($watchList)) return;
-
         foreach ($watchList as $varID => $ledIDs) {
             if (IPS_VariableExists($varID)) {
-                $currentVal = (bool)GetValue($varID);
+                $val = (bool)GetValue($varID);
                 foreach ($ledIDs as $ledID) {
-                    $this->SetLED($ledID, $currentVal);
+                    $this->SetLED($ledID, $val);
                     IPS_Sleep(50);
                 }
             }
@@ -131,11 +175,7 @@ class AllesAus extends IPSModule
 
     private function SwitchDevice(int $id, string $type, bool $status): void
     {
-        $targetID = $id;
-        if ($type !== 'chromo' && IPS_VariableExists($id)) {
-            $targetID = IPS_GetParent($id);
-        }
-
+        $targetID = (IPS_VariableExists($id) && $type !== 'chromo') ? IPS_GetParent($id) : $id;
         try {
             switch ($type) {
                 case 'parent': @HM_WriteValueBoolean($targetID, 'STATE', $status); break;
@@ -144,7 +184,18 @@ class AllesAus extends IPSModule
                 case 'request': @RequestAction($id, $status); break;
             }
         } catch (Exception $e) {
-            $this->SendDebug('Error', "Schaltfehler bei ID $targetID", 0);
+            $this->SendDebug('Error', "Schaltfehler ID $targetID", 0);
+        }
+    }
+
+    private function SendPushover(string $message): void
+    {
+        $inst = $this->ReadPropertyInteger('PushoverInstance');
+        if ($inst <= 0 || !IPS_InstanceExists($inst)) return;
+
+        $title = $this->ReadPropertyString('PushTitle');
+        if (function_exists('TUPO_SendMessage')) {
+            @TUPO_SendMessage($inst, $title, $message, 0);
         }
     }
 }
