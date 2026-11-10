@@ -6,6 +6,7 @@ class Lichtsteuerung extends IPSModule
     {
         parent::Create();
         $this->RegisterPropertyString('DeviceList', '[]');
+        $this->RegisterPropertyString('ButtonList', '[]');
         $this->RegisterPropertyInteger('PushoverInstance', 0);
         $this->RegisterPropertyString('PushTitle', 'Lichtsteuerung ECO');
 
@@ -14,6 +15,8 @@ class Lichtsteuerung extends IPSModule
         
         $this->SetBuffer('WatchList', json_encode([]));
         $this->SetBuffer('EcoTable', json_encode([]));
+        $this->SetBuffer('ButtonMap', json_encode([]));
+        $this->SetBuffer('ButtonLast', json_encode([]));
 
         $this->RegisterTimer('EcoTimer', 0, "LST_EcoTick(\$_IPS['TARGET']);");
     }
@@ -51,6 +54,16 @@ class Lichtsteuerung extends IPSModule
         }
         
         $this->SetBuffer('WatchList', json_encode($watchList));
+
+        // Taster registrieren
+        $buttonMap = [];
+        foreach (json_decode($this->ReadPropertyString('ButtonList'), true) ?: [] as $btn) {
+            $bid = (int) ($btn['ButtonID'] ?? 0);
+            if (!($btn['Enabled'] ?? true) || $bid <= 0 || !IPS_VariableExists($bid)) continue;
+            $buttonMap[$bid][] = ['Action' => $btn['Action'] ?? 'toggle', 'DeviceID' => (int) ($btn['DeviceID'] ?? 0)];
+            $this->RegisterMessage($bid, VM_UPDATE);
+        }
+        $this->SetBuffer('ButtonMap', json_encode($buttonMap));
         $this->SetTimerInterval('EcoTimer', $hasEco ? 60 * 1000 : 0);
         $this->SetSummary(count($list) . ' Geräte aktiv');
     }
@@ -58,6 +71,11 @@ class Lichtsteuerung extends IPSModule
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
         if ($Message == VM_UPDATE) {
+            $buttonMap = json_decode($this->GetBuffer('ButtonMap'), true);
+            if (isset($buttonMap[$SenderID])) {
+                $this->HandleButton((int) $SenderID, $buttonMap[$SenderID]);
+                return;
+            }
             $val = (bool)$Data[0];
             $watchList = json_decode($this->GetBuffer('WatchList'), true);
             if (isset($watchList[$SenderID])) {
@@ -151,6 +169,46 @@ class Lichtsteuerung extends IPSModule
         }
     }
 
+    /** Taster gedrückt: Aktion(en) ausführen. Wiederholte Meldungen beim Gedrückthalten werden ignoriert. */
+    private function HandleButton(int $buttonID, array $actions): void
+    {
+        $last = json_decode($this->GetBuffer('ButtonLast'), true) ?: [];
+        $now = microtime(true);
+        $prev = (float) ($last[$buttonID] ?? 0);
+        $last[$buttonID] = $now;
+        $this->SetBuffer('ButtonLast', json_encode($last));
+        if ($now - $prev < 1.2) {
+            return; // Taster wird gehalten (PRESS_LONG wiederholt sich)
+        }
+
+        foreach ($actions as $a) {
+            switch ($a['Action']) {
+                case 'allOff':
+                    $this->Execute(false);
+                    break;
+                case 'primaryOff':
+                    $this->ExecutePrimary(false);
+                    break;
+                case 'on':
+                case 'off':
+                case 'toggle':
+                    $id = (int) $a['DeviceID'];
+                    if ($id <= 0 || !IPS_VariableExists($id)) break;
+                    $state = $a['Action'] === 'on' ? true : ($a['Action'] === 'off' ? false : !(bool) GetValue($id));
+                    $this->SwitchDevice($id, $this->DeviceType($id), $state);
+                    break;
+            }
+        }
+    }
+
+    /** Gerätetyp aus der Geräteliste, sonst Standard-Aktion der Variable */
+    private function DeviceType(int $id): string
+    {
+        foreach (json_decode($this->ReadPropertyString('DeviceList'), true) ?: [] as $d) {
+            if ((int) $d['DeviceID'] === $id) return $d['DeviceType'];
+        }
+        return 'request';
+    }
     public function SyncLEDs(): void
     {
         $watchList = json_decode($this->GetBuffer('WatchList'), true);
